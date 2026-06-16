@@ -1,0 +1,30 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - uses: ko-build/setup-ko@v0.7
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | ko login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Build & push
+        env:
+          KO_DOCKER_REPO: ghcr.io/${{ github.repository_owner }}/external-dns-openwrt-webhook
+        run: |
+          ko build --bare \
+            --platform=linux/amd64,linux/arm64 \
+            --tags=latest,${{ github.sha }} \
+            ./cmd/webhook
